@@ -28,3 +28,6 @@ htmlcov/
 .vscode/
 .idea/
 *.swp
+
+# macOS metadata
+**/.DS_Store
