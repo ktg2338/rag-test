@@ -1,0 +1,30 @@
+# 가상환경
+venv/
+ENV/
+.env/
+.venv/
+
+# 파이썬 캐시 파일
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 빌드/배포 산출물
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 테스트/로그
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Jupyter Notebook 체크포인트
+.ipynb_checkpoints/
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
