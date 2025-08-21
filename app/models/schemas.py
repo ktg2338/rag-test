@@ -11,8 +11,10 @@ class IngestRequest(BaseModel):
 class QueryRequest(BaseModel):
     question: str
     top_k: Optional[int] = Field(default=4, ge=1, le=20)
+    conversation_id: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
     answer: str
     contexts: List[str]
+    conversation_id: str
