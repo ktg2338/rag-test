@@ -1,9 +1,13 @@
 from typing import List, Optional
-from openai import OpenAI
+from openai import AzureOpenAI
 from app.core.config import settings
 from app.services.memory import Message
 
-_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+_client = AzureOpenAI(
+    api_key=settings.AZURE_OPENAI_API_KEY,
+    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    api_version=settings.AZURE_OPENAI_API_VERSION,
+)
 
 def generate_answer(
     question: str, contexts: List[str], history: Optional[List[Message]] = None
@@ -25,7 +29,7 @@ def generate_answer(
     messages.append({"role": "user", "content": user})
 
     resp = _client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=settings.AZURE_OPENAI_DEPLOYMENT,
         messages=messages,
         temperature=0.2,
     )

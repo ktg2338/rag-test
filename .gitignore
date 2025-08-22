@@ -1,6 +1,7 @@
 # 가상환경
 venv/
 ENV/
+.env
 .env/
 .venv/
 

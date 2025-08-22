@@ -1,9 +1,19 @@
-# FastAPI RAG (OpenAI + Chroma)
+# FastAPI RAG (Azure OpenAI + Chroma)
 
 ## 1) 설치
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # OPENAI_API_KEY 설정
+cp .env.example .env  # Azure OpenAI 환경변수 설정
+
+`.env` 파일에는 다음 값들을 설정합니다:
+
+```
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_EMBED_DEPLOYMENT=
+```
 
 ## 2) 서버 실행
 uvicorn app.main:app --reload
