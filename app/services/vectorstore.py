@@ -49,3 +49,14 @@ def query_similar(query_text: str, top_k: int) -> Tuple[list, list, list]:
     metas = res.get("metadatas", [[]])[0]
     dists = res.get("distances", [[]])[0]
     return docs, metas, dists
+
+
+def get_all_documents() -> Dict[str, Any]:
+    """컬렉션에 저장된 모든 문서 반환"""
+    result = _collection.get(include=["documents", "metadatas"])
+    return {
+        "count": len(result.get("ids", [])),
+        "ids": result.get("ids", []),
+        "documents": result.get("documents", []),
+        "metadatas": result.get("metadatas", []),
+    }

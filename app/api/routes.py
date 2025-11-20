@@ -23,3 +23,9 @@ def query(req: QueryRequest):
     return QueryResponse(
         answer=answer, contexts=contexts, conversation_id=conversation_id
     )
+
+
+@router.get("/documents", tags=["debug"])
+def get_all_documents():
+    """ChromaDB에 저장된 모든 문서 조회"""
+    return vectorstore.get_all_documents()
