@@ -1,21 +1,8 @@
 import glob
 import os
-from app.services.vectorstore import upsert_texts
-
-# 매우 단순한 청크 분할 (문자 기준)
-def chunk_text(text: str, size: int = 1000, overlap: int = 200):
-    chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(start + size, n)
-        chunks.append(text[start:end])
-        if end == n:
-            break
-        start = end - overlap
-        if start < 0:
-            start = 0
-    return chunks
+from app.services.vectorstore import upsert_texts, get_all_documents
+from app.services.chunker import chunk_text
+from app.services.bm25_index import bm25_index
 
 
 def load_and_ingest(pattern: str = "data/raw/**/*.*"):
@@ -34,6 +21,13 @@ def load_and_ingest(pattern: str = "data/raw/**/*.*"):
         return
     ids = upsert_texts(texts, metadatas=metas)
     print(f"Ingested chunks: {len(ids)}")
+
+    # BM25 인덱스 갱신
+    all_docs = get_all_documents()
+    documents = all_docs.get("documents", [])
+    if documents:
+        bm25_index.build(documents)
+        print(f"BM25 index rebuilt with {bm25_index.doc_count} documents")
 
 
 if __name__ == "__main__":
