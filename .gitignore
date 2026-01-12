@@ -7,6 +7,7 @@ ENV/
 
 # 파이썬 캐시 파일
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -32,3 +33,6 @@ htmlcov/
 
 # macOS metadata
 **/.DS_Store
+
+# 데이터 폴더 (ChromaDB 등)
+data/
