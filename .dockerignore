@@ -1,0 +1,11 @@
+.env
+.env.*
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+.vscode
+*.md
+.python-version
