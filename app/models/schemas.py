@@ -18,3 +18,4 @@ class QueryResponse(BaseModel):
     answer: str
     contexts: List[str]
     conversation_id: str
+    steps: List[str] = []

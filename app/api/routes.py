@@ -17,11 +17,11 @@ def ingest(req: IngestRequest):
 
 @router.post("/query", response_model=QueryResponse, tags=["rag"])
 def query(req: QueryRequest):
-    answer, contexts, conversation_id = rag.answer_question(
+    answer, contexts, conversation_id, steps = rag.answer_question(
         req.question, top_k=req.top_k, conversation_id=req.conversation_id
     )
     return QueryResponse(
-        answer=answer, contexts=contexts, conversation_id=conversation_id
+        answer=answer, contexts=contexts, conversation_id=conversation_id, steps=steps
     )
 
 
