@@ -15,6 +15,7 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
     resp = _client.embeddings.create(
         model=settings.AZURE_OPENAI_EMBED_DEPLOYMENT,
         input=texts,
+        dimensions=settings.EMBEDDING_DIMENSION,
     )
     # resp.data 는 입력 순서대로 반환
     return [d.embedding for d in resp.data]

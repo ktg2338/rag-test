@@ -4,10 +4,17 @@ openai>=1.40.0
 pydantic
 pydantic-settings
 python-dotenv
-chromadb>=0.5.5
+# Vector Store (pgvector)
+psycopg2-binary>=2.9.9
+pgvector>=0.3.0
+# Graph Store (Neo4j)
+neo4j>=5.0.0
 # Chunking
 langchain-text-splitters>=0.2.0
 # Hybrid Search (BM25)
 rank-bm25>=0.2.2
 # Reranking
 sentence-transformers>=3.0.0
+# GraphRAG (community detection)
+networkx>=3.0
+python-louvain>=0.16

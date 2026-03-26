@@ -6,13 +6,16 @@ from app.services.memory import memory
 
 
 def answer_question(
-    question: str, top_k: int | None = None, conversation_id: str | None = None
-) -> Tuple[str, List[str], str]:
+    question: str,
+    top_k: int | None = None,
+    conversation_id: str | None = None,
+    mode: str = "local",
+) -> Tuple[str, List[str], str, List[str]]:
     if conversation_id is None:
         conversation_id = str(uuid4())
     history = memory.get(conversation_id)
-    contexts, _metas = retrieve(question, top_k=top_k)
+    contexts, _metas, graph_entities = retrieve(question, top_k=top_k, mode=mode)
     answer = generate_answer(question, contexts, history)
     memory.append(conversation_id, "user", question)
     memory.append(conversation_id, "assistant", answer)
-    return answer, contexts, conversation_id
+    return answer, contexts, conversation_id, graph_entities
