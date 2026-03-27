@@ -24,16 +24,21 @@ def upsert_texts(
 
     if ids is None:
         ids = [str(uuid.uuid4()) for _ in texts]
-    if metadatas is None:
-        metadatas = [{} for _ in texts]
+    # ChromaDB는 빈 dict metadata를 거부하므로 None이면 metadatas 생략
+    if metadatas is not None:
+        metadatas = [m if m else None for m in metadatas]
+        if all(m is None for m in metadatas):
+            metadatas = None
 
     embs = embed_texts(texts)
-    _collection.upsert(
-        ids=ids,
-        documents=texts,
-        metadatas=metadatas,
-        embeddings=embs,
-    )
+    upsert_kwargs: Dict[str, Any] = {
+        "ids": ids,
+        "documents": texts,
+        "embeddings": embs,
+    }
+    if metadatas is not None:
+        upsert_kwargs["metadatas"] = metadatas
+    _collection.upsert(**upsert_kwargs)
     return ids
 
 

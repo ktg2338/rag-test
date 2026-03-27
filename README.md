@@ -1,9 +1,10 @@
 # FastAPI RAG (Azure OpenAI + ChromaDB)
 
-Hybrid Search와 Reranking을 적용한 RAG(Retrieval-Augmented Generation) 시스템입니다.
+LangGraph 기반 Agentic RAG 시스템입니다. 단순 파이프라인이 아닌, 에이전트가 스스로 판단하고 검증하며 답변을 생성합니다.
 
 ## 주요 기능
 
+- **Agentic RAG**: LangGraph 기반 조건부 분기 워크플로우 (질문 라우팅, 문서 평가, 환각 검출, 쿼리 재작성)
 - **Hybrid Search**: Vector Search + BM25 키워드 검색 결합
 - **Reranking**: Cross-Encoder를 통한 검색 결과 재정렬
 - **대화 메모리**: conversation_id 기반 멀티턴 대화 지원
@@ -75,72 +76,89 @@ uvicorn app.main:app --reload
 
 
 ═══════════════════════════════════════════════════════════════════════════════
-                              QUERY FLOW (질의응답)
+                        QUERY FLOW (Agentic RAG 질의응답)
 ═══════════════════════════════════════════════════════════════════════════════
 
     [Client]
         │
-        │  POST /query
-        │  { question, conversation_id }
+        │  POST /query { question, conversation_id }
         ▼
-    ┌─────────┐
-    │ routes  │
-    │ .py     │
-    └────┬────┘
-         │
-         ▼
-    ┌─────────┐      1. conversation_id 확인
-    │ rag.py  │◀────────────────────────────────────┐
-    └────┬────┘                                     │
-         │                                          │
-         │  ┌───────────────────────────────────────┴───┐
-         │  │              memory.py                    │
-         │  │  (대화 히스토리 조회/저장)                 │
-         │  └───────────────────────────────────────────┘
-         │
-         ▼
-    ┌─────────────┐
-    │ retriever   │ ◀─── 2. Hybrid Search + Reranking
-    │ .py         │
-    └──────┬──────┘
-           │
-     ┌─────┴─────┐
-     ▼           ▼
-┌─────────┐  ┌─────────┐
-│ Vector  │  │  BM25   │
-│ Search  │  │ Search  │
-└────┬────┘  └────┬────┘
-     │            │
-     ▼            ▼
-┌─────────┐  ┌──────────┐
-│ChromaDB │  │bm25_index│
-│(시맨틱) │  │(키워드)  │
-└────┬────┘  └────┬─────┘
-     │            │
-     └─────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │   Hybrid    │  3. 점수 정규화 & 가중 합산
-    │   Fusion    │     (Vector: 0.7, BM25: 0.3)
-    └──────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │  Reranker   │  4. Cross-Encoder로 재정렬
-    │  .py        │     (sentence-transformers)
-    └──────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │   llm.py    │  5. Azure OpenAI로 답변 생성
-    │             │     (contexts + history + question)
-    └──────┬──────┘
-           │
-           ▼
-    ┌─────────────┐
-    │  Response   │  { answer, contexts, conversation_id }
-    └─────────────┘
+    ┌─────────┐     ┌─────────────┐
+    │ routes  │────▶│   rag.py    │  conversation_id 확인 + memory 조회
+    └─────────┘     └──────┬──────┘
+                           │
+                           ▼
+              ┌─────────────────────────┐
+              │  LangGraph Agent 시작    │
+              │  (agent.py + nodes.py)  │
+              └────────────┬────────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │   route_query   │  "검색이 필요한 질문인가?"
+                  └────┬───────┬────┘
+                       │       │
+                 "retrieve"  "direct"
+                       │       │
+                       │       ▼
+                       │  ┌──────────────┐
+                       │  │direct_answer │  검색 없이 바로 답변
+                       │  └──────┬───────┘
+                       │         │
+                       │         ▼
+                       │       [END]
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │ retrieve_documents   │  Hybrid Search + Reranking
+            │                      │
+            │  ┌────────┬────────┐ │
+            │  │ Vector │  BM25  │ │
+            │  │ (0.7)  │ (0.3) │ │
+            │  └────┬───┴───┬───┘ │
+            │       └───┬───┘     │
+            │     Hybrid Fusion   │
+            │           │         │
+            │     ┌───────────┐   │
+            │     │ Reranker  │   │
+            │     └───────────┘   │
+            └──────────┬──────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ grade_documents │  LLM이 문서 관련성 평가
+              └────┬───────┬────┘
+                   │       │
+              관련 있음   관련 없음 (& 재시도 < 2)
+                   │       │
+                   │       ▼
+                   │  ┌──────────────┐
+                   │  │rewrite_query │──▶ retrieve_documents (재시도)
+                   │  └──────────────┘
+                   ▼
+              ┌──────────┐
+              │ generate │  컨텍스트 + 대화이력 기반 답변 생성
+              └────┬─────┘
+                   │
+                   ▼
+         ┌───────────────────┐
+         │hallucination_check│  "답변이 문서에 근거하는가?"
+         └────┬─────────┬────┘
+              │         │
+           통과       실패 (& 재시도 < 2)
+              │         │
+              │         └──▶ rewrite_query (재시도)
+              ▼
+        ┌───────────┐
+        │ memory    │  대화 이력 저장
+        └─────┬─────┘
+              │
+              ▼
+        ┌──────────────────────────────────────┐
+        │  Response                             │
+        │  { answer, contexts,                  │
+        │    conversation_id, steps }           │
+        └──────────────────────────────────────┘
 ```
 
 ## 프로젝트 구조
@@ -156,6 +174,9 @@ app/
 │   └── schemas.py       # Pydantic 모델
 └── services/
     ├── rag.py           # RAG 오케스트레이션
+    ├── agent.py         # LangGraph 에이전트 그래프 구성
+    ├── nodes.py         # 에이전트 노드 구현 (라우팅, 평가, 생성, 환각검출)
+    ├── graph_state.py   # 에이전트 상태 정의 (AgentState)
     ├── retriever.py     # Hybrid Search 로직
     ├── vectorstore.py   # ChromaDB 연동
     ├── embeddings.py    # Azure OpenAI Embedding
@@ -165,6 +186,28 @@ app/
     ├── reranker.py      # Cross-Encoder Reranking
     └── chunker.py       # 텍스트 청킹
 ```
+
+## Agentic RAG 워크플로우
+
+LangGraph를 사용하여 에이전트가 자율적으로 판단하는 RAG 파이프라인을 구현했습니다.
+
+### 노드 설명
+
+| 노드 | 역할 |
+|------|------|
+| `route_query` | 질문 분석 후 검색 필요 여부 판단 (retrieve / direct) |
+| `retrieve_documents` | Hybrid Search(Vector + BM25) + Reranking으로 문서 검색 |
+| `grade_documents` | LLM이 검색된 문서의 관련성을 개별 평가 |
+| `rewrite_query` | 관련 문서 부족 시 LLM이 쿼리를 재작성하여 재검색 |
+| `generate` | 필터링된 문서 + 대화 이력 기반으로 최종 답변 생성 |
+| `hallucination_check` | 생성된 답변이 문서에 근거하는지 검증 |
+| `direct_answer` | 인사 등 단순 질문에 검색 없이 직접 답변 |
+
+### 자기 교정 메커니즘
+
+- **문서 관련성 미달** → `rewrite_query` → `retrieve_documents` 재시도
+- **환각 검출** → `rewrite_query` → 전체 파이프라인 재시도
+- 최대 재시도 횟수: **2회** (무한 루프 방지)
 
 ## 설정 옵션
 
