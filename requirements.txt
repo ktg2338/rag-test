@@ -18,3 +18,5 @@ sentence-transformers>=3.0.0
 # GraphRAG (community detection)
 networkx>=3.0
 python-louvain>=0.16
+# MCP (Claude Code integration)
+mcp[cli]>=1.2.0
