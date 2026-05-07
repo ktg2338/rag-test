@@ -10,10 +10,12 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.services.vectorstore import init_db
     from app.services.graph_store import graph_store
+    from app.services.semantic_cache import init_cache_table
+    from app.services.vectorstore import init_db
 
     init_db()
+    init_cache_table()
     graph_store.verify_connection()
     yield
     graph_store.close()

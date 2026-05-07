@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     GRAPH_COMMUNITY_MIN_SIZE: int = 3
     GRAPH_COMMUNITY_RESOLUTION: float = 1.0
 
+    # Semantic Cache 설정
+    SEMANTIC_CACHE_ENABLED: bool = True
+    SEMANTIC_CACHE_THRESHOLD: float = 0.95  # 코사인 유사도 (1 - distance)
+
     class Config:
         env_file = ".env"
 

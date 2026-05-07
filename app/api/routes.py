@@ -1,17 +1,19 @@
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import (
-    IngestRequest,
-    QueryRequest,
-    QueryResponse,
+    CacheClearResponse,
+    CacheEntry,
+    CacheStatsResponse,
     GraphIngestRequest,
     GraphIngestResponse,
     GraphStatsResponse,
+    IngestRequest,
+    QueryRequest,
+    QueryResponse,
 )
-from app.services import vectorstore
-from app.services import rag
+from app.services import rag, semantic_cache, vectorstore
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +32,23 @@ def ingest(req: IngestRequest):
 
 @router.post("/query", response_model=QueryResponse, tags=["rag"])
 def query(req: QueryRequest):
-    answer, contexts, conversation_id, graph_entities = rag.answer_question(
-        req.question,
-        top_k=req.top_k,
-        conversation_id=req.conversation_id,
-        mode=req.mode or "local",
+    answer, contexts, conversation_id, graph_entities, cache_hit, cache_similarity = (
+        rag.answer_question(
+            req.question,
+            top_k=req.top_k,
+            conversation_id=req.conversation_id,
+            mode=req.mode or "local",
+            use_cache=req.use_cache,
+            cache_threshold=req.cache_threshold,
+        )
     )
     return QueryResponse(
         answer=answer,
         contexts=contexts,
         conversation_id=conversation_id,
         graph_entities=graph_entities,
+        cache_hit=cache_hit,
+        cache_similarity=cache_similarity,
     )
 
 
@@ -56,9 +64,9 @@ def get_all_documents():
 @router.post("/graph/ingest", response_model=GraphIngestResponse, tags=["graph"])
 def graph_ingest(req: GraphIngestRequest):
     """텍스트에서 트리플을 추출하여 Knowledge Graph 구축"""
+    from app.services.community_summarizer import invalidate_cache
     from app.services.graph_extractor import extract_triples_batch
     from app.services.graph_store import graph_store
-    from app.services.community_summarizer import invalidate_cache
 
     # 텍스트가 없으면 PostgreSQL에서 모든 문서 로드
     if req.texts:
@@ -100,8 +108,8 @@ def graph_ingest(req: GraphIngestRequest):
 @router.get("/graph/stats", response_model=GraphStatsResponse, tags=["graph"])
 def graph_stats():
     """Knowledge Graph 통계"""
-    from app.services.graph_store import graph_store
     from app.services.community_summarizer import detect_communities
+    from app.services.graph_store import graph_store
 
     communities = detect_communities() if graph_store.node_count >= 2 else []
     return GraphStatsResponse(
@@ -128,3 +136,28 @@ def graph_entities(q: str = "", limit: int = 50):
     # 전체 노드 목록
     nodes = graph_store.get_entity_names(limit=limit)
     return {"entities": nodes, "total": graph_store.node_count}
+
+
+# ── Semantic Cache Endpoints ──
+
+
+@router.get("/cache/stats", response_model=CacheStatsResponse, tags=["cache"])
+def cache_stats():
+    return CacheStatsResponse(**semantic_cache.stats())
+
+
+@router.get("/cache/entries", response_model=list[CacheEntry], tags=["cache"])
+def cache_entries(limit: int = 50):
+    return [CacheEntry(**e) for e in semantic_cache.list_entries(limit=limit)]
+
+
+@router.post("/cache/clear", response_model=CacheClearResponse, tags=["cache"])
+def cache_clear():
+    return CacheClearResponse(deleted=semantic_cache.clear())
+
+
+@router.delete("/cache/{cache_id}", tags=["cache"])
+def cache_delete(cache_id: str):
+    if not semantic_cache.delete(cache_id):
+        raise HTTPException(status_code=404, detail="cache entry not found")
+    return {"deleted": cache_id}
