@@ -12,9 +12,44 @@ class QueryRequest(BaseModel):
     question: str
     top_k: Optional[int] = Field(default=4, ge=1, le=20)
     conversation_id: Optional[str] = None
+    use_cache: bool = True
+    cache_threshold: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="코사인 유사도 임계값. 미지정 시 SEMANTIC_CACHE_THRESHOLD 사용.",
+    )
 
 
 class QueryResponse(BaseModel):
     answer: str
     contexts: List[str]
     conversation_id: str
+    cache_hit: bool = False
+    cache_similarity: Optional[float] = None
+
+
+# ── Semantic Cache ──
+
+
+class CacheStatsResponse(BaseModel):
+    entries: int
+    total_hits: int
+    oldest_created_at: Optional[str] = None
+    last_accessed_at: Optional[str] = None
+    threshold: float
+    enabled: bool
+
+
+class CacheEntry(BaseModel):
+    id: str
+    question: str
+    answer: str
+    contexts: List[str]
+    hit_count: int
+    created_at: Optional[str] = None
+    last_accessed_at: Optional[str] = None
+
+
+class CacheClearResponse(BaseModel):
+    deleted: int

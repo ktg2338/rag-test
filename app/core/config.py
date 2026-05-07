@@ -18,8 +18,13 @@ class Settings(BaseSettings):
     # Reranking 설정
     RERANKER_ENABLED: bool = True
 
+    # Semantic Cache 설정
+    SEMANTIC_CACHE_ENABLED: bool = True
+    SEMANTIC_CACHE_THRESHOLD: float = 0.95  # 코사인 유사도 (1 - distance)
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()
